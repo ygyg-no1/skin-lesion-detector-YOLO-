@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 运行时数据（会自动创建，含用户上传图/历史/账号，切勿提交）
+backend/uploads/
+backend/history/
+backend/users/
+
+# 配置与密钥
+.env
+
+# 训练产物与数据集（体积大，请从 ISIC 获取）
+datasets/
+runs/
+
+# 编辑器与系统
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db

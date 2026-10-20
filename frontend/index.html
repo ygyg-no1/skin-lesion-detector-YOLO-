@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医学影像智能检测与分析系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        medical: {
+                            blue: '#0F62FE',
+                            cyan: '#00B8D9',
+                            green: '#00B42A',
+                            orange: '#FF7D00',
+                            red: '#F53F3F',
+                        },
+                        neutral: {
+                            50: '#F9FAFB',
+                            100: '#F3F4F6',
+                            200: '#E5E7EB',
+                            300: '#D1D5DB',
+                            800: '#1F2937',
+                            900: '#111827',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto { content-visibility: auto; }
+            .bg-glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); }
+            .scrollbar-hide::-webkit-scrollbar { display: none; }
+            .animate-fade-in { animation: fadeIn 0.3s ease forwards; }
+            .animate-slide-up { animation: slideUp 0.3s ease forwards; }
+            
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        }
+    </style>
+</head>
+<body class="bg-neutral-50 font-sans min-h-screen flex flex-col text-neutral-800">
+    <!-- 顶部导航 -->
+    <header id="mainHeader" class="bg-glass shadow-sm sticky top-0 z-50 transition-all duration-300">
+        <div class="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-r from-medical-blue to-medical-cyan p-2 rounded-lg text-white">
+                    <i class="fa fa-heartbeat text-xl"></i>
+                </div>
+                <h1 class="text-lg md:text-xl font-bold text-medical-blue">医学影像智能检测系统</h1>
+            </div>
+            
+            <div class="flex items-center space-x-5">
+                <div class="hidden md:flex items-center space-x-2 bg-white/70 px-3 py-1.5 rounded-full">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-medical-green animate-pulse"></span>
+                    <span class="text-xs text-neutral-700">YOLO模型已就绪</span>
+                </div>
+                <button id="apiSettingsBtn" class="flex items-center space-x-1 text-sm text-medical-blue hover:text-medical-blue/80 transition-colors py-1.5 px-2 rounded-lg hover:bg-medical-blue/5">
+                    <i class="fa fa-key"></i>
+                    <span>API设置</span>
+                </button>
+                <!-- 登录/用户信息区域 -->
+                <div id="userArea" class="flex items-center">
+                    <button id="loginBtn" class="hidden md:flex items-center bg-medical-blue hover:bg-medical-blue/90 text-white px-4 py-2 rounded-lg transition-all shadow-sm hover:shadow">
+                        <i class="fa fa-user-circle mr-1.5"></i> 登录/注册
+                    </button>
+                    <div id="userInfo" class="hidden items-center space-x-3">
+                        <span id="usernameDisplay" class="text-sm font-medium"></span>
+                        <button id="logoutBtn" class="text-neutral-500 hover:text-medical-red transition-colors p-1">
+                            <i class="fa fa-sign-out"></i>
+                        </button>
+                    </div>
+                    <button class="md:hidden flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-sm hover:shadow" id="mobileUserBtn">
+                        <i class="fa fa-user text-medical-blue"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 登录模态框 -->
+    <div id="loginModal" class="fixed inset-0 bg-black/30 z-50 hidden items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 transform transition-all duration-300 scale-95 opacity-0" id="loginModalContent">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-lg font-semibold text-neutral-800" id="authModalTitle">用户登录</h3>
+                <button id="closeLoginModal" class="text-neutral-400 hover:text-neutral-600 transition-colors p-1.5 rounded-full hover:bg-neutral-100">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-5">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2 text-neutral-700">用户名</label>
+                    <input type="text" id="usernameInput" class="w-full px-4 py-2.5 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-medical-blue/30 focus:border-medical-blue transition-all outline-none" placeholder="请输入3-20个字符的用户名">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2 text-neutral-700">密码</label>
+                    <input type="password" id="passwordInput" class="w-full px-4 py-2.5 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-medical-blue/30 focus:border-medical-blue transition-all outline-none" placeholder="请输入至少6个字符的密码">
+                </div>
+                <div class="mb-4 hidden" id="emailInputContainer">
+                    <label class="block text-sm font-medium mb-2 text-neutral-700">邮箱</label>
+                    <input type="email" id="emailInput" class="w-full px-4 py-2.5 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-medical-blue/30 focus:border-medical-blue transition-all outline-none" placeholder="请输入有效的邮箱地址">
+                </div>
+                <p class="text-xs text-neutral-500 mb-4">
+                    <span id="authSwitchText">还没有账号？</span>
+                    <button id="authSwitchBtn" class="text-medical-blue hover:underline font-medium">立即注册</button>
+                </p>
+                <button id="submitAuthBtn" class="w-full bg-medical-blue hover:bg-medical-blue/90 text-white py-3 rounded-xl font-medium transition-all shadow-sm hover:shadow">
+                    登录
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow container mx-auto px-4 py-6 md:py-8">
+        <!-- 状态提示 -->
+        <div class="bg-medical-green/10 border border-medical-green/20 text-medical-green rounded-xl p-4 mb-6 flex items-start space-x-3 animate-fade-in">
+            <div class="bg-medical-green/20 p-2 rounded-full mt-0.5">
+                <i class="fa fa-check-circle text-medical-green"></i>
+            </div>
+            <div>
+                <p class="font-medium">模型服务状态正常</p>
+                <p class="text-sm text-medical-green/80 mt-0.5">支持CT、X光、MRI影像检测 | 病理分析服务已连接</p>
+            </div>
+            <button class="ml-auto text-medical-green/60 hover:text-medical-green transition-colors">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        
+        <!-- 功能标签页 -->
+        <div class="mb-6 border-b border-neutral-200">
+            <ul class="flex flex-wrap -mb-px" id="tabs">
+                <li class="mr-2">
+                    <button class="tab-btn active inline-block px-5 py-3 border-b-2 border-medical-blue text-medical-blue font-medium rounded-t-lg transition-all" 
+                            data-target="image-content">
+                        <i class="fa fa-image mr-2"></i>图片检测
+                    </button>
+                </li>
+                <li class="mr-2">
+                    <button class="tab-btn inline-block px-5 py-3 border-b-2 border-transparent hover:text-medical-blue hover:border-medical-blue/30 rounded-t-lg transition-all text-neutral-600" 
+                            data-target="video-content">
+                        <i class="fa fa-video-camera mr-2"></i>视频/摄像头
+                    </button>
+                </li>
+                <li>
+                    <button class="tab-btn inline-block px-5 py-3 border-b-2 border-transparent hover:text-medical-blue hover:border-medical-blue/30 rounded-t-lg transition-all text-neutral-600" 
+                            data-target="analysis-content">
+                        <i class="fa fa-stethoscope mr-2"></i>病理分析
+                    </button>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- 图片检测内容 -->
+        <div id="image-content" class="tab-content">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 左侧上传区 -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300 h-full">
+                        <h3 class="text-lg font-semibold mb-5 flex items-center text-neutral-800">
+                            <i class="fa fa-upload text-medical-blue mr-2"></i>上传医学影像
+                        </h3>
+                        
+                        <!-- 拖放上传 -->
+                        <div id="dropArea" class="border-2 border-dashed border-neutral-300 rounded-xl p-8 text-center mb-6 hover:border-medical-blue hover:bg-medical-blue/5 transition-all duration-300 cursor-pointer bg-neutral-50">
+                            <div class="bg-medical-blue/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fa fa-picture-o text-2xl text-medical-blue"></i>
+                            </div>
+                            <p class="text-neutral-700 mb-3">拖放医学影像到此处，或</p>
+                            <button id="browseImageBtn" class="bg-medical-blue text-white px-5 py-2.5 rounded-lg hover:bg-medical-blue/90 transition-all shadow-sm hover:shadow">
+                                选择影像文件
+                            </button>
+                            <input type="file" id="imageInput" accept="image/*" class="hidden">
+                            <p class="text-xs text-neutral-500 mt-4">支持 JPG, PNG, BMP 格式（最大10MB）<br>推荐分辨率：1024×1024 像素</p>
+                        </div>
+                        
+                        <!-- 检测参数 -->
+                        <div class="mb-6">
+                            <h4 class="font-medium mb-3 text-neutral-700">检测参数配置</h4>
+                            <div class="space-y-5">
+                                <div>
+                                    <div class="flex justify-between items-center mb-1.5">
+                                        <label class="block text-sm text-neutral-600">置信度阈值</label>
+                                        <span id="confidenceValue" class="text-xs font-medium text-medical-blue">0.5</span>
+                                    </div>
+                                    <input type="range" min="0.1" max="1.0" step="0.05" value="0.5" 
+                                           class="w-full h-2 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-medical-blue" 
+                                           id="confidenceSlider">
+                                </div>
+                                
+                                <div>
+                                    <div class="flex justify-between items-center mb-1.5">
+                                        <label class="block text-sm text-neutral-600">IOU阈值</label>
+                                        <span id="iouValue" class="text-xs font-medium text-medical-blue">0.45</span>
+                                    </div>
+                                    <input type="range" min="0.1" max="1.0" step="0.05" value="0.45" 
+                                           class="w-full h-2 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-medical-blue" 
+                                           id="iouSlider">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <button id="detectImageBtn" class="w-full bg-medical-blue hover:bg-medical-blue/90 text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <i class="fa fa-search-plus mr-2"></i>开始智能检测
+                        </button>
+                        <p class="text-xs text-neutral-500 text-center mt-3">检测时间取决于影像大小，通常需要2-10秒</p>
+                    </div>
+                </div>
+                
+                <!-- 右侧结果区 -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300 h-full">
+                        <h3 class="text-lg font-semibold mb-5 flex items-center text-neutral-800">
+                            <i class="fa fa-eye text-medical-blue mr-2"></i>检测结果展示
+                        </h3>
+                        
+                        <!-- 图片显示 -->
+                        <div id="imagePreviewContainer" class="border border-neutral-200 rounded-xl bg-neutral-50 flex items-center justify-center min-h-[400px] mb-6 overflow-hidden">
+                            <div class="text-center p-8 animate-slide-up">
+                                <div class="bg-neutral-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fa fa-image text-3xl text-neutral-400"></i>
+                                </div>
+                                <p class="text-neutral-500">上传医学影像后将显示检测结果</p>
+                                <p class="text-xs text-neutral-400 mt-2">系统将自动识别病灶区域并标记</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 统计数据 -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-neutral-50 rounded-xl p-4 text-center hover:bg-white hover:shadow-sm transition-all duration-300">
+                                <p class="text-xs text-neutral-500 mb-1">总检测目标</p>
+                                <p class="text-2xl font-bold text-medical-blue" id="totalObjects">0</p>
+                            </div>
+                            <div class="bg-neutral-50 rounded-xl p-4 text-center hover:bg-white hover:shadow-sm transition-all duration-300">
+                                <p class="text-xs text-neutral-500 mb-1">最高置信度</p>
+                                <p class="text-2xl font-bold text-medical-green" id="maxConfidence">0%</p>
+                            </div>
+                            <div class="bg-neutral-50 rounded-xl p-4 text-center hover:bg-white hover:shadow-sm transition-all duration-300">
+                                <p class="text-xs text-neutral-500 mb-1">检测时间</p>
+                                <p class="text-2xl font-bold text-medical-orange" id="detectionTime">0ms</p>
+                            </div>
+                            <div class="bg-neutral-50 rounded-xl p-4 text-center hover:bg-white hover:shadow-sm transition-all duration-300">
+                                <p class="text-xs text-neutral-500 mb-1">目标类别</p>
+                                <p class="text-2xl font-bold text-medical-red" id="objectClasses">0</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 检测详情 -->
+                        <div>
+                            <h4 class="font-medium mb-3 text-neutral-700">检测目标详情</h4>
+                            <div id="detectionResults" class="max-h-[200px] overflow-y-auto border border-neutral-200 rounded-xl divide-y divide-neutral-100 bg-white scrollbar-hide">
+                                <div class="text-center text-neutral-500 p-8">
+                                    <i class="fa fa-list-alt text-2xl mb-2"></i>
+                                    <p>检测结果将显示在这里</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 分析按钮 -->
+                        <div class="mt-6 text-right">
+                            <button id="analyzeImageBtn" class="bg-medical-cyan hover:bg-medical-cyan/90 text-white px-6 py-2.5 rounded-lg font-medium transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fa fa-stethoscope mr-2"></i>进行病理分析
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 视频/摄像头内容 -->
+        <div id="video-content" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 左侧控制区 -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300 h-full">
+                        <h3 class="text-lg font-semibold mb-5 flex items-center text-neutral-800">
+                            <i class="fa fa-video-camera text-medical-blue mr-2"></i>视频检测控制
+                        </h3>
+                        
+                        <!-- 源选择 -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-3 text-neutral-700">视频源选择</label>
+                            <div class="flex space-x-3">
+                                <button id="cameraSourceBtn" class="flex-1 bg-medical-blue text-white px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm">
+                                    <i class="fa fa-camera mr-1.5"></i> 摄像头
+                                </button>
+                                <button id="videoSourceBtn" class="flex-1 bg-neutral-100 text-neutral-700 px-4 py-2.5 rounded-xl text-sm hover:bg-neutral-200 transition-all">
+                                    <i class="fa fa-file-video-o mr-1.5"></i> 本地视频
+                                </button>
+                            </div>
+                            <input type="file" id="videoInput" accept="video/*" class="hidden mt-3">
+                            <div id="videoSourceInfo" class="mt-3 text-sm text-neutral-500 hidden bg-neutral-50 p-2 rounded-lg">
+                                <i class="fa fa-info-circle mr-1 text-medical-blue"></i> 支持 MP4, AVI, MOV 格式（最大50MB）
+                            </div>
+                        </div>
+                        
+                        <!-- 检测参数 -->
+                        <div class="mb-6">
+                            <h4 class="font-medium mb-3 text-neutral-700">检测参数配置</h4>
+                            <div class="space-y-5">
+                                <div>
+                                    <div class="flex justify-between items-center mb-1.5">
+                                        <label class="block text-sm text-neutral-600">置信度阈值</label>
+                                        <span id="videoConfidenceValue" class="text-xs font-medium text-medical-blue">0.5</span>
+                                    </div>
+                                    <input type="range" min="0.1" max="1.0" step="0.05" value="0.5" 
+                                           class="w-full h-2 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-medical-blue" 
+                                           id="videoConfidenceSlider">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 控制按钮 -->
+                        <div class="space-y-3">
+                            <button id="startVideoBtn" class="w-full bg-medical-green hover:bg-medical-green/90 text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center shadow-sm hover:shadow">
+                                <i class="fa fa-play mr-2"></i>开始实时检测
+                            </button>
+                            <button id="stopVideoBtn" class="w-full bg-medical-red hover:bg-medical-red/90 text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fa fa-stop mr-2"></i>停止检测
+                            </button>
+                            <button id="captureFrameBtn" class="w-full bg-medical-orange hover:bg-medical-orange/90 text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fa fa-camera mr-2"></i>抓拍关键帧
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧显示区 -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300 h-full">
+                        <h3 class="text-lg font-semibold mb-5 flex items-center text-neutral-800">
+                            <i class="fa fa-eye text-medical-blue mr-2"></i>实时检测画面
+                        </h3>
+                        
+                        <!-- 视频显示 -->
+                        <div id="videoPreviewContainer" class="border border-neutral-200 rounded-xl bg-neutral-50 flex items-center justify-center min-h-[400px] mb-6 overflow-hidden relative">
+                            <div id="videoPlaceholder" class="text-center p-8 animate-slide-up">
+                                <div class="bg-neutral-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fa fa-film text-3xl text-neutral-400"></i>
+                                </div>
+                                <p class="text-neutral-500">点击"开始实时检测"按钮启动摄像头</p>
+                            </div>
+                            <video id="liveVideo" class="hidden w-full h-full object-contain"></video>
+                            <canvas id="detectionCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+                            
+                            <div id="videoLoadingOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center hidden">
+                                <div class="text-center">
+                                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-medical-blue mb-3"></div>
+                                    <p class="text-medical-blue font-medium">初始化摄像头中...</p>
+                                </div>
+                            </div>
+                            
+                            <div id="videoError" class="hidden text-center p-8">
+                                <div class="bg-medical-red/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fa fa-exclamation-circle text-2xl text-medical-red"></i>
+                                </div>
+                                <p class="text-lg font-medium text-medical-red" id="videoErrorText">摄像头访问失败</p>
+                                <button onclick="document.getElementById('startVideoBtn').click()" class="mt-4 text-medical-blue hover:underline text-sm font-medium">
+                                    重试
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 实时统计 -->
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-neutral-50 rounded-xl p-4 text-center hover:bg-white hover:shadow-sm transition-all duration-300">
+                                <p class="text-xs text-neutral-500 mb-1">帧率</p>
+                                <p class="text-2xl font-bold text-medical-blue" id="frameRate">0 FPS</p>
+                            </div>
+                            <div class="bg-neutral-50 rounded-xl p-4 text-center hover:bg-white hover:shadow-sm transition-all duration-300">
+                                <p class="text-xs text-neutral-500 mb-1">当前目标数</p>
+                                <p class="text-2xl font-bold text-medical-green" id="currentObjects">0</p>
+                            </div>
+                            <div class="bg-neutral-50 rounded-xl p-4 text-center hover:bg-white hover:shadow-sm transition-all duration-300">
+                                <p class="text-xs text-neutral-500 mb-1">运行时间</p>
+                                <p class="text-2xl font-bold text-medical-orange" id="runningTime">00:00</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 最近抓拍 -->
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="font-medium text-neutral-700">最近抓拍帧</h4>
+                                <button id="clearFramesBtn" class="text-xs text-neutral-500 hover:text-medical-red transition-colors">
+                                    <i class="fa fa-trash-o mr-1"></i>清空
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-3" id="recentFrames">
+                                <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm hover:border-medical-blue/30 transition-colors bg-neutral-50">
+                                    <i class="fa fa-image mr-1"></i> 无数据
+                                </div>
+                                <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm hover:border-medical-blue/30 transition-colors bg-neutral-50">
+                                    <i class="fa fa-image mr-1"></i> 无数据
+                                </div>
+                                <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm hover:border-medical-blue/30 transition-colors bg-neutral-50">
+                                    <i class="fa fa-image mr-1"></i> 无数据
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 病理分析内容 -->
+        <div id="analysis-content" class="tab-content hidden">
+            <div class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300 mb-6">
+                <h3 class="text-lg font-semibold mb-5 flex items-center text-neutral-800">
+                    <i class="fa fa-stethoscope text-medical-blue mr-2"></i>病理分析报告
+                </h3>
+                
+                <!-- 分析进度 -->
+                <div id="analysisStatus" class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="text-sm text-neutral-500">分析进度</p>
+                        <p class="text-sm font-medium text-medical-blue" id="analysisProgressText">0%</p>
+                    </div>
+                    <div class="w-full bg-neutral-100 rounded-full h-2.5 mb-4 overflow-hidden">
+                        <div id="analysisProgressBar" class="bg-medical-cyan h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- 分析结果 -->
+                <div id="analysisResultContainer" class="min-h-[400px] border border-neutral-200 rounded-xl p-6 bg-neutral-50">
+                    <div class="text-center py-12 animate-slide-up">
+                        <div class="bg-neutral-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fa fa-file-text-o text-3xl text-neutral-400"></i>
+                        </div>
+                        <p class="text-neutral-500">请先完成图片检测并点击"进行病理分析"</p>
+                    </div>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="saveAnalysisBtn" class="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-6 py-2.5 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa fa-download mr-2"></i>保存分析报告
+                    </button>
+                    <button id="newAnalysisBtn" class="bg-medical-blue hover:bg-medical-blue/90 text-white px-6 py-2.5 rounded-lg font-medium transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa fa-refresh mr-2"></i>重新分析
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 历史记录 -->
+            <div class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300">
+                <div class="flex justify-between items-center mb-5">
+                    <h3 class="text-lg font-semibold flex items-center text-neutral-800">
+                        <i class="fa fa-history text-medical-blue mr-2"></i>历史分析记录
+                    </h3>
+                    <button id="exportHistoryBtn" class="text-sm text-medical-blue hover:text-medical-blue/80 transition-colors flex items-center">
+                        <i class="fa fa-file-excel-o mr-1.5"></i>导出记录
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-neutral-200">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider rounded-tl-lg">分析时间</th>
+                                <th class="px-4 py-3 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">影像名称</th>
+                                <th class="px-4 py-3 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">检测目标</th>
+                                <th class="px-4 py-3 bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">状态</th>
+                                <th class="px-4 py-3 bg-neutral-50 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider rounded-tr-lg">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-neutral-100" id="analysisHistory">
+                            <tr>
+                                <td colspan="5" class="px-4 py-8 text-center text-neutral-500">
+                                    <i class="fa fa-folder-open-o text-2xl mb-2"></i>
+                                    <p>请先登录查看历史记录</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- API设置模态框 -->
+    <div id="apiModal" class="fixed inset-0 bg-black/30 z-50 hidden items-center justify-center backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-lg font-semibold text-neutral-800">DeepSeek API 配置</h3>
+                <button id="closeApiModal" class="text-neutral-400 hover:text-neutral-600 transition-colors p-1.5 rounded-full hover:bg-neutral-100">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-5">
+                <label class="block text-sm font-medium mb-2 text-neutral-700">API 密钥</label>
+                <input type="password" id="apiKeyInput" class="w-full px-4 py-2.5 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-medical-blue/30 focus:border-medical-blue transition-all outline-none text-neutral-800" placeholder="请输入DeepSeek API密钥">
+                <p class="text-xs text-neutral-500 mt-2">获取API密钥请访问 <a href="https://www.deepseek.com" target="_blank" class="text-medical-blue hover:underline">DeepSeek 官方网站</a></p>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancelApiBtn" class="px-4 py-2.5 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 transition-all">
+                    取消
+                </button>
+                <button id="saveApiKeyBtn" class="bg-medical-blue hover:bg-medical-blue/90 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm hover:shadow">
+                    保存设置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 后端API基础地址（与后端保持一致）
+        // 后端地址：默认本机 8000 端口，可在本脚本之前设置 window.API_BASE_URL 覆盖
+        const API_BASE_URL = window.API_BASE_URL || "http://localhost:8000/api";
+        
+        // 全局变量
+        let mediaStream = null;
+        let videoElement = null;
+        let canvasElement = null;
+        let detectionInterval = null;
+        let videoTimer = null;
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化视频和画布元素
+            videoElement = document.getElementById('liveVideo');
+            canvasElement = document.getElementById('detectionCanvas');
+
+            // 检查登录状态
+            checkLoginStatus();
+
+            // 导航栏滚动效果
+            const header = document.getElementById('mainHeader');
+            window.addEventListener('scroll', () => {
+                header.classList.toggle('shadow', window.scrollY > 10);
+            });
+
+            // 标签页切换
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // 更新按钮状态
+                    document.querySelectorAll('.tab-btn').forEach(b => {
+                        b.classList.remove('active', 'border-medical-blue', 'text-medical-blue');
+                        b.classList.add('border-transparent', 'text-neutral-600');
+                    });
+                    btn.classList.add('active', 'border-medical-blue', 'text-medical-blue');
+                    
+                    // 显示对应内容
+                    const targetId = btn.getAttribute('data-target');
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.getElementById(targetId).classList.remove('hidden');
+                });
+            });
+            
+            // 滑块值实时更新
+            const confidenceSlider = document.getElementById('confidenceSlider');
+            const confidenceValue = document.getElementById('confidenceValue');
+            confidenceSlider.addEventListener('input', () => {
+                confidenceValue.textContent = confidenceSlider.value;
+            });
+            
+            const iouSlider = document.getElementById('iouSlider');
+            const iouValue = document.getElementById('iouValue');
+            iouSlider.addEventListener('input', () => {
+                iouValue.textContent = iouSlider.value;
+            });
+            
+            const videoConfidenceSlider = document.getElementById('videoConfidenceSlider');
+            const videoConfidenceValue = document.getElementById('videoConfidenceValue');
+            videoConfidenceSlider.addEventListener('input', () => {
+                videoConfidenceValue.textContent = videoConfidenceSlider.value;
+            });
+            
+            // 图片上传功能
+            const browseImageBtn = document.getElementById('browseImageBtn');
+            const imageInput = document.getElementById('imageInput');
+            const dropArea = document.getElementById('dropArea');
+            const detectImageBtn = document.getElementById('detectImageBtn');
+            
+            browseImageBtn.addEventListener('click', () => {
+                if (!isLoggedIn()) {
+                    showLoginModal();
+                    return;
+                }
+                imageInput.click();
+            });
+            
+            imageInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    previewImage(e.target.files[0]);
+                    detectImageBtn.disabled = false;
+                }
+            });
+            
+            // 拖放上传
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, e => e.preventDefault() && e.stopPropagation());
+            });
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => {
+                    dropArea.classList.add('border-medical-blue', 'bg-medical-blue/5');
+                });
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => {
+                    dropArea.classList.remove('border-medical-blue', 'bg-medical-blue/5');
+                });
+            });
+            
+            dropArea.addEventListener('drop', (e) => {
+                if (!isLoggedIn()) {
+                    showLoginModal();
+                    return;
+                }
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    previewImage(file);
+                    detectImageBtn.disabled = false;
+                }
+            });
+            
+            // 预览图片
+            function previewImage(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const container = document.getElementById('imagePreviewContainer');
+                    container.innerHTML = `
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-medical-blue mb-3"></div>
+                            <p class="text-medical-blue">正在加载图片...</p>
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        container.innerHTML = `<img src="${e.target.result}" class="max-w-full max-h-[400px] object-contain transition-opacity duration-500" alt="预览图片">`;
+                        window.currentImageFile = file;
+                    }, 300);
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            // 图片检测
+            detectImageBtn.addEventListener('click', async () => {
+                if (!isLoggedIn()) {
+                    showLoginModal();
+                    return;
+                }
+                if (!window.currentImageFile) return;
+                
+                const formData = new FormData();
+                formData.append('file', window.currentImageFile);
+                formData.append('conf_threshold', confidenceSlider.value);
+                formData.append('iou_threshold', iouSlider.value);
+                
+                // 显示加载状态
+                const container = document.getElementById('imagePreviewContainer');
+                container.innerHTML = `
+                    <div class="text-center">
+                        <div class="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-medical-blue mb-4"></div>
+                        <p class="text-lg font-medium text-neutral-700">正在智能检测，请稍候...</p>
+                    </div>
+                `;
+                
+                try {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) throw new Error('请先登录');
+                    
+                    const response = await fetch(`${API_BASE_URL}/detect/image`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.detail || '检测失败');
+                    
+                    if (result.status === 'success') {
+                        const data = result.data;
+                        // 显示标注图片
+                        container.innerHTML = `<img src="data:image/jpeg;base64,${data.annotated_image}" class="max-w-full max-h-[400px] object-contain opacity-0 transition-opacity duration-500" alt="检测结果">`;
+                        setTimeout(() => container.querySelector('img').classList.add('opacity-100'), 100);
+                        
+                        // 更新统计数据
+                        updateCounter('totalObjects', 0, data.total_objects, 500);
+                        updateCounter('maxConfidence', 0, Math.round(data.max_confidence * 100), 500, '%');
+                        updateCounter('detectionTime', 0, data.detect_time_ms, 500, 'ms');
+                        updateCounter('objectClasses', 0, new Set(data.detection_results.map(r => r.class_name)).size, 500);
+                        
+                        // 显示检测详情
+                        const resultsContainer = document.getElementById('detectionResults');
+                        resultsContainer.innerHTML = '';
+                        data.detection_results.forEach((obj, idx) => {
+                            setTimeout(() => {
+                                const item = document.createElement('div');
+                                item.className = 'p-3 hover:bg-neutral-50 opacity-0 transform translate-y-2 transition-all duration-300';
+                                item.innerHTML = `
+                                    <div class="flex justify-between items-center">
+                                        <div class="font-medium text-neutral-800">${obj.class_name}</div>
+                                        <div class="text-medical-green text-sm font-medium">置信度: ${(obj.confidence * 100).toFixed(0)}%</div>
+                                    </div>
+                                    <div class="text-xs text-neutral-500 mt-1">
+                                        位置: (${obj.bbox[0].toFixed(0)}, ${obj.bbox[1].toFixed(0)}) - (${obj.bbox[2].toFixed(0)}, ${obj.bbox[3].toFixed(0)})
+                                    </div>
+                                `;
+                                resultsContainer.appendChild(item);
+                                setTimeout(() => item.classList.remove('opacity-0', 'translate-y-2'), 50);
+                            }, idx * 100);
+                        });
+                        
+                        // 保存检测结果并启用分析按钮
+                        window.detectionResults = data;
+                        document.getElementById('analyzeImageBtn').disabled = false;
+                    }
+                } catch (error) {
+                    console.error('检测错误:', error);
+                    container.innerHTML = `
+                        <div class="text-center text-medical-red p-8">
+                            <div class="bg-medical-red/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fa fa-exclamation-circle text-2xl text-medical-red"></i>
+                            </div>
+                            <p class="text-lg font-medium text-medical-red">检测失败</p>
+                            <p class="text-sm text-medical-red/80 mt-2">${error.message}</p>
+                            <button onclick="document.getElementById('detectImageBtn').click()" class="mt-4 text-medical-blue hover:underline text-sm font-medium">
+                                重试检测
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+            
+            // 病理分析
+            document.getElementById('analyzeImageBtn').addEventListener('click', async () => {
+                if (!isLoggedIn()) {
+                    showLoginModal();
+                    return;
+                }
+                if (!window.detectionResults) return;
+                
+                // 切换到分析标签页
+                document.querySelector('[data-target="analysis-content"]').click();
+                
+                // 显示加载状态
+                const container = document.getElementById('analysisResultContainer');
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-medical-cyan mb-4"></div>
+                        <p class="text-lg font-medium text-neutral-700">正在进行病理分析，请稍候...</p>
+                    </div>
+                `;
+                
+                // 重置进度条
+                const progressBar = document.getElementById('analysisProgressBar');
+                const progressText = document.getElementById('analysisProgressText');
+                progressBar.style.width = '0%';
+                progressText.textContent = '0%';
+                
+                try {
+                    const apiKey = localStorage.getItem('deepseekApiKey');
+                    const token = localStorage.getItem('access_token');
+                    
+                    if (!apiKey) {
+                        container.innerHTML = `
+                            <div class="text-center py-8">
+                                <div class="bg-neutral-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fa fa-key text-2xl text-neutral-400"></i>
+                                </div>
+                                <p class="text-lg font-medium text-neutral-700">需要配置DeepSeek API密钥</p>
+                                <button onclick="document.getElementById('apiSettingsBtn').click()" class="mt-4 bg-medical-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-medical-blue/90 transition-all">
+                                    去配置API密钥
+                                </button>
+                            </div>
+                        `;
+                        return;
+                    }
+                    if (!token) throw new Error('登录已过期，请重新登录');
+                    
+                    // 调用分析API
+                    const response = await fetch(`${API_BASE_URL}/analyze/pathology`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': apiKey,
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            results: window.detectionResults.detection_results,
+                            image_name: window.detectionResults.original_filename,
+                            annotated_image: window.detectionResults.annotated_image,
+                            total_objects: window.detectionResults.total_objects,
+                            max_confidence: window.detectionResults.max_confidence,
+                            detect_time_ms: window.detectionResults.detect_time_ms
+                        })
+                    });
+                    
+                    // 模拟进度条
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress = Math.min(progress + Math.floor(Math.random() * 5) + 1, 90);
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = `${progress}%`;
+                    }, 300);
+                    
+                    const result = await response.json();
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '100%';
+                    
+                    if (!response.ok) throw new Error(result.detail || '分析失败');
+                    
+                    if (result.status === 'success') {
+                        // 显示分析结果
+                        container.innerHTML = `
+                            <div class="prose max-w-none">
+                                <h4 class="text-lg font-semibold mb-4 pb-2 border-b border-neutral-200 text-neutral-800">病理分析报告</h4>
+                                <div class="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm mb-5">
+                                    ${result.data.analysis}
+                                </div>
+                                <div class="bg-medical-blue/5 border border-medical-blue/20 p-4 rounded-xl text-sm text-medical-blue/90">
+                                    <i class="fa fa-info-circle mr-2"></i>
+                                    注：本分析结果基于AI算法生成，仅供临床参考，不构成最终诊断依据。
+                                </div>
+                            </div>
+                        `;
+                        
+                        // 启用按钮并更新历史记录
+                        document.getElementById('saveAnalysisBtn').disabled = false;
+                        document.getElementById('newAnalysisBtn').disabled = false;
+                        loadHistory();
+                    }
+                } catch (error) {
+                    console.error('分析错误:', error);
+                    container.innerHTML = `
+                        <div class="text-center text-medical-red py-8">
+                            <div class="bg-medical-red/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fa fa-exclamation-circle text-2xl text-medical-red"></i>
+                            </div>
+                            <p class="text-lg font-medium text-medical-red">分析失败</p>
+                            <p class="text-sm text-medical-red/80 mt-2">${error.message}</p>
+                            <button onclick="document.getElementById('analyzeImageBtn').click()" class="mt-4 text-medical-blue hover:underline text-sm font-medium">
+                                重新分析
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+            
+            // 数字变化动画
+            function updateCounter(elementId, start, end, duration, suffix = '') {
+                const element = document.getElementById(elementId);
+                const range = end - start;
+                const stepTime = Math.max(Math.abs(Math.floor(duration / range)), 30);
+                let startTime = new Date().getTime();
+                let timer = setInterval(() => {
+                    const now = new Date().getTime();
+                    const remaining = Math.max((startTime + duration - now) / duration, 0);
+                    const value = Math.round(end - remaining * range);
+                    element.textContent = value + suffix;
+                    if (value === end) clearInterval(timer);
+                }, stepTime);
+            }
+                        // 登录相关功能
+            function isLoggedIn() {
+                return !!localStorage.getItem('access_token');
+            }
+            
+            function checkLoginStatus() {
+                if (isLoggedIn()) {
+                    // 已登录状态
+                    document.getElementById('loginBtn').classList.add('hidden');
+                    document.getElementById('userInfo').classList.remove('hidden');
+                    document.getElementById('userInfo').classList.add('flex');
+                    
+                    // 显示用户名
+                    const userStr = localStorage.getItem('user_info');
+                    if (userStr) {
+                        const user = JSON.parse(userStr);
+                        document.getElementById('usernameDisplay').textContent = user.username;
+                    }
+                    
+                    // 加载历史记录
+                    loadHistory();
+                } else {
+                    // 未登录状态
+                    document.getElementById('loginBtn').classList.remove('hidden');
+                    document.getElementById('userInfo').classList.add('hidden');
+                }
+            }
+            
+            function showLoginModal() {
+                const modal = document.getElementById('loginModal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                setTimeout(() => {
+                    const modalContent = document.getElementById('loginModalContent');
+                    modalContent.classList.remove('scale-95', 'opacity-0');
+                    modalContent.classList.add('scale-100', 'opacity-100');
+                }, 50);
+            }
+            
+            // 登录/注册切换
+            let isLoginMode = true;
+            document.getElementById('authSwitchBtn').addEventListener('click', () => {
+                isLoginMode = !isLoginMode;
+                
+                if (isLoginMode) {
+                    document.getElementById('authModalTitle').textContent = '用户登录';
+                    document.getElementById('submitAuthBtn').textContent = '登录';
+                    document.getElementById('authSwitchText').textContent = '还没有账号？';
+                    document.getElementById('authSwitchBtn').textContent = '立即注册';
+                    document.getElementById('emailInputContainer').classList.add('hidden');
+                } else {
+                    document.getElementById('authModalTitle').textContent = '用户注册';
+                    document.getElementById('submitAuthBtn').textContent = '注册';
+                    document.getElementById('authSwitchText').textContent = '已有账号？';
+                    document.getElementById('authSwitchBtn').textContent = '立即登录';
+                    document.getElementById('emailInputContainer').classList.remove('hidden');
+                }
+            });
+            
+            // 关闭登录模态框
+            document.getElementById('closeLoginModal').addEventListener('click', () => {
+                const modalContent = document.getElementById('loginModalContent');
+                modalContent.classList.remove('scale-100', 'opacity-100');
+                modalContent.classList.add('scale-95', 'opacity-0');
+                
+                setTimeout(() => {
+                    const modal = document.getElementById('loginModal');
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }, 300);
+            });
+            
+            // 登录/注册提交
+            document.getElementById('submitAuthBtn').addEventListener('click', async () => {
+                const username = document.getElementById('usernameInput').value.trim();
+                const password = document.getElementById('passwordInput').value.trim();
+                
+                // 前端表单验证
+                if (!username || username.length < 3 || username.length > 20) {
+                    alert('用户名长度必须在3-20个字符之间');
+                    return;
+                }
+                if (!password || password.length < 6) {
+                    alert('密码长度不能少于6个字符');
+                    return;
+                }
+                
+                // 注册模式额外验证
+                if (!isLoginMode) {
+                    const email = document.getElementById('emailInput').value.trim();
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!email || !emailRegex.test(email)) {
+                        alert('请输入有效的邮箱地址');
+                        return;
+                    }
+                }
+                
+                try {
+                    let response;
+                    if (isLoginMode) {
+                        // 登录
+                        response = await fetch(`${API_BASE_URL}/token`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: new URLSearchParams({
+                                username: username,
+                                password: password
+                            })
+                        });
+                    } else {
+                        // 注册
+                        const email = document.getElementById('emailInput').value.trim();
+                        response = await fetch(`${API_BASE_URL}/register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                username: username,
+                                email: email,
+                                password: password
+                            })
+                        });
+                    }
+                    
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || '操作失败');
+                    
+                    if (isLoginMode) {
+                        // 登录成功
+                        localStorage.setItem('access_token', data.access_token);
+                        localStorage.setItem('user_info', JSON.stringify(data.user));
+                        alert('登录成功');
+                        document.getElementById('closeLoginModal').click();
+                        checkLoginStatus();
+                    } else {
+                        // 注册成功，切换到登录
+                        alert('注册成功，请登录');
+                        isLoginMode = true;
+                        document.getElementById('authModalTitle').textContent = '用户登录';
+                        document.getElementById('submitAuthBtn').textContent = '登录';
+                        document.getElementById('emailInputContainer').classList.add('hidden');
+                    }
+                } catch (error) {
+                    console.error('认证错误:', error);
+                    alert(error.message);
+                }
+            });
+            
+            // 登出
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                if (confirm('确定要退出登录吗？')) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('user_info');
+                    checkLoginStatus();
+                    // 重置历史记录显示
+                    document.getElementById('analysisHistory').innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-neutral-500">
+                                <i class="fa fa-folder-open-o text-2xl mb-2"></i>
+                                <p>请先登录查看历史记录</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+            
+            // 移动端用户按钮
+            document.getElementById('mobileUserBtn').addEventListener('click', () => {
+                if (isLoggedIn()) {
+                    const user = JSON.parse(localStorage.getItem('user_info'));
+                    if (confirm(`当前用户: ${user.username}\n点击确定退出登录`)) {
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('user_info');
+                        checkLoginStatus();
+                    }
+                } else {
+                    showLoginModal();
+                }
+            });
+            
+            // 加载历史记录
+            async function loadHistory() {
+                if (!isLoggedIn()) return;
+                
+                try {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) throw new Error('请先登录');
+                    
+                    const response = await fetch(`${API_BASE_URL}/history`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    
+                    if (!response.ok) throw new Error('加载历史记录失败');
+                    
+                    const result = await response.json();
+                    if (result.status === 'success' && result.data.length > 0) {
+                        const historyContainer = document.getElementById('analysisHistory');
+                        historyContainer.innerHTML = '';
+                        
+                        result.data.forEach((item, idx) => {
+                            setTimeout(() => {
+                                const tr = document.createElement('tr');
+                                tr.className = 'hover:bg-neutral-50 transition-colors opacity-0 transform translate-y-2';
+                                
+                                // 提取检测目标名称
+                                const targetNames = item.detection_results.map(r => r.class_name).join(', ');
+                                
+                                tr.innerHTML = `
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-700">${item.timestamp}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-700">${item.image_name}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-neutral-700">${targetNames}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-medical-green/10 text-medical-green">已完成</span>
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
+                                        <button class="text-medical-blue hover:text-medical-blue/80 mr-3 view-history font-medium" data-id="${item.id}">查看</button>
+                                        <button class="text-neutral-500 hover:text-medical-red transition-colors delete-history" data-id="${item.id}">删除</button>
+                                    </td>
+                                `;
+                                historyContainer.appendChild(tr);
+                                
+                                // 绑定事件
+                                tr.querySelector('.view-history').addEventListener('click', () => handleViewHistory(item.id));
+                                tr.querySelector('.delete-history').addEventListener('click', () => handleDeleteHistory(item.id));
+                                
+                                setTimeout(() => tr.classList.remove('opacity-0', 'translate-y-2'), 50);
+                            }, idx * 80);
+                        });
+                    } else {
+                        document.getElementById('analysisHistory').innerHTML = `
+                            <tr>
+                                <td colspan="5" class="px-4 py-8 text-center text-neutral-500">
+                                    <i class="fa fa-folder-open-o text-2xl mb-2"></i>
+                                    <p>暂无分析记录</p>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('加载历史记录失败:', error);
+                    document.getElementById('analysisHistory').innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-medical-red">
+                                <i class="fa fa-exclamation-circle text-2xl mb-2"></i>
+                                <p>加载历史记录失败</p>
+                                <button onclick="loadHistory()" class="mt-2 text-medical-blue hover:underline text-sm">重试</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+            
+            // 查看历史记录详情
+            async function handleViewHistory(recordId) {
+                try {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) throw new Error('请先登录');
+                    
+                    const response = await fetch(`${API_BASE_URL}/history/${recordId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+
+                    if (!response.ok) throw new Error('获取历史详情失败');
+
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        // 创建详情弹窗
+                        const modal = document.createElement('div');
+                        modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+                        modal.innerHTML = `
+                            <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                                <div class="p-6 border-b border-neutral-200 flex justify-between items-center">
+                                    <h3 class="text-xl font-semibold">历史分析详情</h3>
+                                    <button class="close-modal text-neutral-400 hover:text-neutral-600">
+                                        <i class="fa fa-times text-xl"></i>
+                                    </button>
+                                </div>
+                                <div class="p-6">
+                                    <div class="mb-6">
+                                        <p class="text-sm text-neutral-500 mb-1">分析时间</p>
+                                        <p class="font-medium">${result.data.timestamp}</p>
+                                    </div>
+                                    <div class="mb-6">
+                                        <p class="text-sm text-neutral-500 mb-1">影像名称</p>
+                                        <p class="font-medium">${result.data.image_name}</p>
+                                    </div>
+                                    <div class="mb-6">
+                                        <p class="text-sm text-neutral-500 mb-1">检测目标</p>
+                                        <div class="flex flex-wrap gap-2 mt-2">
+                                            ${result.data.detection_results.map(r => `
+                                                <span class="px-3 py-1 bg-medical-blue/10 text-medical-blue rounded-full text-sm">
+                                                    ${r.class_name} (${(r.confidence * 100).toFixed(0)}%)
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    <div class="mb-6">
+                                        <p class="text-sm text-neutral-500 mb-1">标注影像</p>
+                                        <img src="data:image/jpeg;base64,${result.data.annotated_image}" 
+                                             class="w-full rounded-xl border border-neutral-200 mt-2" 
+                                             alt="标注影像">
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-neutral-500 mb-1">病理分析</p>
+                                        <div class="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mt-2 whitespace-pre-line">
+                                            ${result.data.analysis}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(modal);
+                        
+                        // 关闭弹窗
+                        modal.querySelector('.close-modal').addEventListener('click', () => {
+                            document.body.removeChild(modal);
+                        });
+                    }
+                } catch (error) {
+                    console.error('查看历史错误：', error);
+                    alert('查看历史记录失败');
+                }
+            }
+            
+            // 删除历史记录
+            async function handleDeleteHistory(recordId) {
+                if (!confirm('确定要删除这条记录吗？')) return;
+
+                try {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) throw new Error('请先登录');
+                    
+                    const response = await fetch(`${API_BASE_URL}/history/${recordId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+
+                    if (!response.ok) throw new Error('删除历史记录失败');
+                    alert('删除成功');
+                    loadHistory(); // 刷新列表
+                } catch (error) {
+                    console.error('删除历史错误：', error);
+                    alert('删除历史记录失败');
+                }
+            }
+            
+            // API设置模态框
+            const apiModal = document.getElementById('apiModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            document.getElementById('apiSettingsBtn').addEventListener('click', () => {
+                apiModal.classList.remove('hidden');
+                apiModal.classList.add('flex');
+                setTimeout(() => {
+                    modalContent.classList.remove('scale-95', 'opacity-0');
+                    modalContent.classList.add('scale-100', 'opacity-100');
+                }, 50);
+                
+                // 读取已保存的API密钥
+                const savedKey = localStorage.getItem('deepseekApiKey');
+                if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
+            });
+            
+            document.getElementById('closeApiModal').addEventListener('click', closeApiModal);
+            document.getElementById('cancelApiBtn').addEventListener('click', closeApiModal);
+            
+            function closeApiModal() {
+                modalContent.classList.remove('scale-100', 'opacity-100');
+                modalContent.classList.add('scale-95', 'opacity-0');
+                
+                setTimeout(() => {
+                    apiModal.classList.add('hidden');
+                    apiModal.classList.remove('flex');
+                }, 300);
+            }
+            
+            document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
+                const apiKey = document.getElementById('apiKeyInput').value;
+                if (apiKey) {
+                    localStorage.setItem('deepseekApiKey', apiKey);
+                    alert('API密钥保存成功');
+                    closeApiModal();
+                } else {
+                    alert('请输入API密钥');
+                }
+            });
+
+            // 摄像头相关功能
+            const startVideoBtn = document.getElementById('startVideoBtn');
+            const stopVideoBtn = document.getElementById('stopVideoBtn');
+            const captureFrameBtn = document.getElementById('captureFrameBtn');
+            const videoPlaceholder = document.getElementById('videoPlaceholder');
+            const videoError = document.getElementById('videoError');
+            const videoErrorText = document.getElementById('videoErrorText');
+            const videoLoadingOverlay = document.getElementById('videoLoadingOverlay');
+
+            // 开始摄像头检测
+            startVideoBtn.addEventListener('click', async () => {
+                if (!isLoggedIn()) {
+                    showLoginModal();
+                    return;
+                }
+
+                try {
+                    // 显示加载状态
+                    videoPlaceholder.classList.add('hidden');
+                    videoError.classList.add('hidden');
+                    videoLoadingOverlay.classList.remove('hidden');
+                    startVideoBtn.disabled = true;
+
+                    // 请求摄像头权限
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { width: 1280, height: 720 },
+                        audio: false 
+                    });
+
+                    // 初始化视频和画布
+                    videoElement.srcObject = mediaStream;
+                    videoElement.classList.remove('hidden');
+                    
+                    // 调整画布尺寸
+                    videoElement.onloadedmetadata = () => {
+                        canvasElement.width = videoElement.videoWidth;
+                        canvasElement.height = videoElement.videoHeight;
+                    };
+
+                    // 开始检测循环
+                    let startTime = new Date().getTime();
+                    let frameCount = 0;
+                    let lastFpsUpdate = 0;
+                    
+                    // 启动计时器更新运行时间
+                    let seconds = 0;
+                    videoTimer = setInterval(() => {
+                        seconds++;
+                        const minutes = Math.floor(seconds / 60);
+                        const remainingSeconds = seconds % 60;
+                        document.getElementById('runningTime').textContent = 
+                            `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+                    }, 1000);
+
+                    // 启动检测循环
+                    detectionInterval = setInterval(() => {
+                        // 计算FPS
+                        frameCount++;
+                        const now = Date.now();
+                        if (now - lastFpsUpdate >= 1000) {
+                            const fps = Math.round(frameCount * 1000 / (now - lastFpsUpdate));
+                            document.getElementById('frameRate').textContent = `${fps} FPS`;
+                            frameCount = 0;
+                            lastFpsUpdate = now;
+                        }
+                        
+                        // 执行检测
+                        detectFromVideo();
+                    }, 100); // 每100ms检测一帧（约10FPS）
+
+                    // 更新按钮状态
+                    stopVideoBtn.disabled = false;
+                    captureFrameBtn.disabled = false;
+                    videoLoadingOverlay.classList.add('hidden');
+
+                } catch (error) {
+                    console.error('摄像头访问失败:', error);
+                    // 显示错误信息
+                    videoLoadingOverlay.classList.add('hidden');
+                    videoErrorText.textContent = getCameraErrorMsg(error);
+                    videoError.classList.remove('hidden');
+                    startVideoBtn.disabled = false;
+                }
+            });
+
+            // 停止摄像头检测
+            stopVideoBtn.addEventListener('click', () => {
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                    mediaStream = null;
+                }
+                if (detectionInterval) clearInterval(detectionInterval);
+                if (videoTimer) clearInterval(videoTimer);
+                
+                // 重置界面
+                videoElement.classList.add('hidden');
+                videoElement.srcObject = null;
+                canvasElement.getContext('2d').clearRect(0, 0, canvasElement.width, canvasElement.height);
+                videoPlaceholder.classList.remove('hidden');
+                
+                // 重置统计
+                document.getElementById('frameRate').textContent = '0 FPS';
+                document.getElementById('currentObjects').textContent = '0';
+                document.getElementById('runningTime').textContent = '00:00';
+                
+                // 更新按钮状态
+                startVideoBtn.disabled = false;
+                stopVideoBtn.disabled = true;
+                captureFrameBtn.disabled = true;
+            });
+
+            // 抓拍关键帧
+            captureFrameBtn.addEventListener('click', () => {
+                if (!videoElement.srcObject) return;
+                
+                // 从视频中捕获当前帧
+                const ctx = canvasElement.getContext('2d');
+                ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                const frameDataUrl = canvasElement.toDataURL('image/jpeg');
+                
+                // 更新最近抓拍列表
+                const framesContainer = document.getElementById('recentFrames');
+                const frameElement = document.createElement('div');
+                frameElement.className = 'relative rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 group';
+                frameElement.innerHTML = `
+                    <img src="${frameDataUrl}" class="w-full h-full object-cover aspect-video" alt="抓拍帧">
+                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button class="bg-medical-blue text-white p-2 rounded-full mx-1 hover:bg-medical-blue/90">
+                            <i class="fa fa-search-plus"></i>
+                        </button>
+                        <button class="bg-medical-red text-white p-2 rounded-full mx-1 hover:bg-medical-red/90 delete-frame">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                
+                // 添加删除事件
+                frameElement.querySelector('.delete-frame').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    framesContainer.removeChild(frameElement);
+                    // 补充空项
+                    if (framesContainer.children.length === 0) {
+                        framesContainer.innerHTML = `
+                            <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm">
+                                <i class="fa fa-image mr-1"></i> 无数据
+                            </div>
+                            <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm">
+                                <i class="fa fa-image mr-1"></i> 无数据
+                            </div>
+                            <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm">
+                                <i class="fa fa-image mr-1"></i> 无数据
+                            </div>
+                        `;
+                    }
+                });
+                
+                // 插入到列表最前面
+                if (framesContainer.children.length >= 3) {
+                    framesContainer.removeChild(framesContainer.lastChild);
+                }
+                framesContainer.insertBefore(frameElement, framesContainer.firstChild);
+                
+                // 移除空项样式
+                Array.from(framesContainer.children).forEach(child => {
+                    if (child.classList.contains('border-dashed')) {
+                        framesContainer.removeChild(child);
+                    }
+                });
+            });
+
+            // 清空抓拍帧
+            document.getElementById('clearFramesBtn').addEventListener('click', () => {
+                const framesContainer = document.getElementById('recentFrames');
+                framesContainer.innerHTML = `
+                    <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm">
+                        <i class="fa fa-image mr-1"></i> 无数据
+                    </div>
+                    <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm">
+                        <i class="fa fa-image mr-1"></i> 无数据
+                    </div>
+                    <div class="border-2 border-dashed border-neutral-200 rounded-xl aspect-video flex items-center justify-center text-neutral-400 text-sm">
+                        <i class="fa fa-image mr-1"></i> 无数据
+                    </div>
+                `;
+            });
+
+            // 从视频帧检测目标
+            async function detectFromVideo() {
+                if (!videoElement || !videoElement.srcObject) return;
+                
+                // 绘制当前视频帧到画布
+                const ctx = canvasElement.getContext('2d');
+                ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                
+                try {
+                    // 将画布内容转为Blob
+                    canvasElement.toBlob(async (blob) => {
+                        const formData = new FormData();
+                        formData.append('file', blob, 'frame.jpg');
+                        formData.append('conf_threshold', videoConfidenceSlider.value);
+                        formData.append('iou_threshold', 0.45);
+                        
+                        const token = localStorage.getItem('access_token');
+                        if (!token) return;
+                        
+                        const response = await fetch(`${API_BASE_URL}/detect/image`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        if (response.ok && result.status === 'success') {
+                            const data = result.data;
+                            // 更新当前目标数
+                            document.getElementById('currentObjects').textContent = data.total_objects;
+                            
+                            // 绘制检测框
+                            data.detection_results.forEach(obj => {
+                                const [x1, y1, x2, y2] = obj.bbox;
+                                // 绘制边框
+                                ctx.strokeStyle = 'rgba(15, 98, 254, 0.8)';
+                                ctx.lineWidth = 2;
+                                ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+                                
+                                // 绘制标签背景
+                                ctx.fillStyle = 'rgba(15, 98, 254, 0.8)';
+                                const textHeight = 20;
+                                ctx.fillRect(x1, y1 - textHeight, ctx.measureText(`${obj.class_name} ${(obj.confidence*100).toFixed(0)}%`).width + 10, textHeight);
+                                
+                                // 绘制标签文本
+                                ctx.fillStyle = '#fff';
+                                ctx.font = '14px sans-serif';
+                                ctx.fillText(`${obj.class_name} ${(obj.confidence*100).toFixed(0)}%`, x1 + 5, y1 - 5);
+                            });
+                        }
+                    }, 'image/jpeg');
+                } catch (error) {
+                    console.error('视频帧检测失败:', error);
+                }
+            }
+
+            // 摄像头错误信息处理
+            function getCameraErrorMsg(error) {
+                switch(error.name) {
+                    case 'NotAllowedError':
+                        return '摄像头权限被拒绝，请在浏览器设置中允许访问';
+                    case 'NotFoundError':
+                        return '未找到摄像头设备';
+                    case 'NotReadableError':
+                        return '摄像头被占用或无法访问';
+                    case 'OverconstrainedError':
+                        return '无法满足摄像头参数要求';
+                    default:
+                        return `摄像头访问失败: ${error.message}`;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

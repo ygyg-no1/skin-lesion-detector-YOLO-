@@ -1,0 +1,25 @@
+# Web 框架与网络
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+requests==2.32.3
+python-multipart==0.0.9
+
+# 数据校验与序列化
+pydantic==2.8.2
+email-validator==2.2.0
+
+# 认证与加密
+passlib[pbkdf2]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# 配置
+python-dotenv==1.0.1
+
+# 计算机视觉与深度学习
+ultralytics==8.2.28
+opencv-python==4.10.0.84
+numpy==1.26.4
+
+# PyTorch 请按本机 CUDA 版本单独安装（示例：CUDA 11.8）
+# pip install torch==2.3.0 torchvision==0.18.0 --index-url https://download.pytorch.org/whl/cu118
+# 纯 CPU 环境：pip install torch==2.3.0 torchvision==0.18.0
